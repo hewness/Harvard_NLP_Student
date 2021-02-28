@@ -70,12 +70,12 @@ dim(drinkTDMm)
 # Make sure order is correct!  We always combined chardonnay first, so has to match for other analysis
 filesNames <- gsub('.csv','',txtFiles)
 filesNames
-colnames(drinkTDMm) <- c(filesNames[2], filesNames[1])
+colnames(drinkTDMm) <- c(filesNames[1], filesNames[2])
 
 # Examine
 head(drinkTDMm)
 
-
+set.seed(123)
 commonality.cloud(drinkTDMm, 
                   max.words=150, 
                   random.order=FALSE,
