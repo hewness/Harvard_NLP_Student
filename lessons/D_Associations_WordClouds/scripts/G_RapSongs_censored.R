@@ -6,7 +6,7 @@
 #'
 
 # Set wd
-setwd("~/Desktop/Harvard_NLP_Student/lessons/D_Associations_WordClouds/data")
+setwd("~/Documents/GitHub/lessons/D_Associations_WordClouds/data")
 
 # Options
 options(stringsAsFactors = F, scipen = 999)

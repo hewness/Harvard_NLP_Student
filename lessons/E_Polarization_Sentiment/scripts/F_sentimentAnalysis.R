@@ -7,7 +7,7 @@
 #'
 
 # Wd
-setwd("~/Desktop/Harvard_NLP_Student/lessons/E_Polarization_Sentiment/data")
+setwd("~/Documents/GitHub/Harvard_NLP_Student/lessons/E_Polarization_Sentiment/data")
 
 # Libs
 library(tm)
@@ -20,7 +20,7 @@ library(tidyr)
 library(corpus)
 
 # Bring in our supporting functions
-source('~/Desktop/Harvard_NLP_Student/lessons/Z_otherScripts/ZZZ_supportingFunctions.R')
+source('~/Documents/GitHub/Harvard_NLP_Student/lessons/Z_otherScripts/ZZZ_supportingFunctions.R')
 
 # Create custom stop words
 stops <- c(stopwords('english'))
@@ -76,13 +76,15 @@ afinnSent
 afinnSent$afinnAmt     <- afinnSent$count * afinnSent$value
 
 # Compare w/polarity and bing
-mean(afinnTemporal$afinnAmt)
+
 
 # FAKE EXAMPLE: if the documents were related and temporal, make sure they are sorted by time first!
 # Example use case : i.e. over time how was the emotional content for a topic i.e. Pakistan articles
 afinnTemporal          <- aggregate(afinnAmt~document, afinnSent, sum)
 afinnTemporal$document <- as.numeric(afinnTemporal$document)
 afinnTemporal          <- afinnTemporal[order(afinnTemporal$document),]
+
+mean(afinnTemporal$afinnAmt)
 
 # Quick plot
 plot(afinnTemporal$afinnAmt, type="l", main="Quick Timeline of Identified Words") 

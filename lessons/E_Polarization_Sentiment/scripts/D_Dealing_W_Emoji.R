@@ -7,7 +7,7 @@
 #'
 
 # Wd
-setwd("~/Desktop/Harvard_NLP_Student/lessons/E_Polarization_Sentiment/data")
+setwd("~/Documents/GitHub/Harvard_NLP_Student/lessons/E_Polarization_Sentiment/data")
 library(rtweet) # Get the emoji lexicon or load one manually
 library(mgsub)
 
@@ -20,7 +20,7 @@ nrow(emojis)
 unicorns <- readRDS('unicorns.rds')
 
 # Ignore the Japanese
-unicorns$text[c(720, 829)]
+print(unicorns$text[c(720, 829)])
 # https://twitter.com/massafrancis/status/1363660144379273216
 
 grep(emojis$code[2], unicorns$text)
@@ -29,6 +29,8 @@ grep(emojis$code[2], unicorns$text)
 # Regex Exaplantion "^" anything but the 1-127th ASCII character is sub'ed to ""
 # Yes I had to look that up :)
 gsub("[^\x01-\x7F]", "", unicorns$text[c(720, 829)])
+
+print(unicorns$text[c(720, 829)])
 
 # 1A Remove: qdapRegex, removes text based emoticons only!  Special characters remain
 data(emoticon)

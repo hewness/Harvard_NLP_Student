@@ -6,7 +6,7 @@
 #'
 
 # Set the working directory
-setwd("~/Desktop/Harvard_NLP_Student/lessons/D_Associations_WordClouds/data")
+setwd("~/Documents/GitHub/Harvard_NLP_Student/lessons/D_Associations_WordClouds/data")
 
 # Libs
 library(tm)
@@ -16,7 +16,7 @@ library(ggplot2)
 library(ggthemes)
 
 # Bring in our supporting functions
-source('~/Desktop/Harvard_NLP_Student/lessons/Z_otherScripts/ZZZ_supportingFunctions.R')
+source('~/Documents/GitHub/Harvard_NLP_Student/lessons/Z_otherScripts/ZZZ_supportingFunctions.R')
 
 # Options & Functions
 options(stringsAsFactors = FALSE)

@@ -6,7 +6,7 @@
 #'
 
 # Set the working directory
-setwd("~/Desktop/Harvard_NLP_Student/lessons/D_Associations_WordClouds/data")
+setwd("~/Documents/GitHub/Harvard_NLP_Student/lessons/D_Associations_WordClouds/data")
 
 # Libs
 library(tm)

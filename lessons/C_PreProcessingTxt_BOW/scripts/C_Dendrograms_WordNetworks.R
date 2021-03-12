@@ -7,7 +7,7 @@
 #'
 
 # Set the working directory
-setwd("~/Desktop/hult_NLP_student/lessons/class3/data")
+setwd("~/Documents/GitHub/Harvard_NLP_Student/lessons/C_PreProcessingTxt_BOW/data")
 
 # Libs
 library(tm)
