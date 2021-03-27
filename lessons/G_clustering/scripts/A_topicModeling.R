@@ -8,7 +8,7 @@
 #'FOR REALLY DECENT EXPLANATION w/more math http://i.amcat.nl/lda/understanding_alpha.html
 
 # Wd
-setwd("~/Desktop/Harvard_NLP_Student/lessons/G_clustering/data")
+setwd("~/Documents/GitHub/Harvard_NLP_Student/lessons/G_clustering/data")
 
 
 # Libs
@@ -21,7 +21,7 @@ library(dplyr)
 library(treemap)
 
 # Bring in our supporting functions
-source('~/Desktop/Harvard_NLP_Student/lessons/Z_otherScripts/ZZZ_supportingFunctions.R')
+source('~/Documents/GitHub/Harvard_NLP_Student/lessons/Z_otherScripts/ZZZ_supportingFunctions.R')
 
 # In some cases, blank documents and words are created bc of preprocessing.  This will remove them.
 blankRemoval<-function(x){

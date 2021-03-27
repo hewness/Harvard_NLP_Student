@@ -8,7 +8,7 @@
 
 
 # Wd
-setwd("~/Desktop/Harvard_NLP_Student/lessons/H_text2Vec_documentClassification/data")
+setwd("~/Documents/GitHub/Harvard_NLP_Student/lessons/H_text2Vec_documentClassification/data")
 
 # Libs
 library(text2vec)
