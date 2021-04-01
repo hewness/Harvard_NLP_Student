@@ -1,8 +1,9 @@
 #' Gordon Hew
-#' NBA Case Study
-#' Mar30
+#' AI Incident Database Case Study
+#' Apr 1
 #'
 #' Below Code borrows heavily from scripts found at https://github.com/kwartler/Harvard_NLP_Student
+#' 
 library(lubridate, warn.conflicts = FALSE)
 library(tidyverse)
 library(tm)
@@ -21,6 +22,8 @@ library(lexicon)
 library(plyr)
 library(ggplot2)
 library(ggthemes)
+library(RColorBrewer)
+
 setwd("~/Documents/GitHub/Harvard_NLP_Student/cases/B_AIID")
 options(stringsAsFactors = FALSE)
 Sys.setlocale('LC_ALL','C')
@@ -44,6 +47,8 @@ docAssignment<-function(x){
 }
 
 #' LDA analysis
+#' Adapted from https://github.com/kwartler/Harvard_NLP_Student/blob/master/lessons/G_clustering/scripts/A_topicModeling.R
+#' 
 #' @param k number of topics
 #' @param numIter number of reviews, it performs random word sampling each time
 #' @param alpha - there is a distribution of the probabilities of how similar they are to each other, are dice similar in size/shape/weight?
@@ -104,19 +109,23 @@ lda_analysis <-  function(text, output_dir, k = 5, numIter = 25, alpha = 0.02, e
   serVis(ldaJSON, out.dir=output_dir, open.browser = FALSE)
 }
 
+#' Creates cluster topic plots with emotional sentiment
+#' Adapted from https://github.com/kwartler/Harvard_NLP_Student/blob/master/lessons/G_clustering/scripts/F_clustering_sentiment.R
+#'
+#' @param data_df incident data
+#' @param file_name name of the file
+#' @param clusters number of clusters to generate
 emotion_by_topic_cluster <- function(data_df, file_name, clusters=5) {
   allInfo <- data.frame(doc_id = 1:nrow(data_df),
                         text   = data_df$body,
-                        #source = data_df$source)
                         source = 1)
-  # Now the TM
-  stops  <- c(stopwords('SMART'),'chars') # API truncation "[+3394 chars]"
+  
+  stops  <- c(stopwords('SMART'),'chars') 
   allInfo <- VCorpus(DataframeSource(allInfo))
   allInfo <- cleanCorpus(allInfo, stops)
   allInfoDTM <-  DocumentTermMatrix(allInfo)
   allInfoDTM <- as.matrix(allInfoDTM)
   allInfoDTM <- subset(allInfoDTM, rowSums(allInfoDTM) > 0)
-  #dim(allInfoDTM)
   
   #### Perform a Spherical K Means Clustering
   txtSKMeans <- skmeans(allInfoDTM,
@@ -203,11 +212,11 @@ incident_data_by_year$avg_reports_per_incident <- incident_data_by_year$total_re
 # Plot time series of data
 par(mfrow=c(1,3))
 plot(incident_data_by_year$year, incident_data_by_year$incident_count, type = "b", col = "red", xlab = "Year",
-     ylab = "Unique AI Incidents", main="Unique AI Incidents vs Year")
-plot(incident_data_by_year$year, incident_data_by_year$avg_reports_per_incident, type = "b", col = "blue", xlab = "year",
-     ylab = "Average Peports per AI Incident", main='Average Peports per AI Incident vs Year')
+     ylab = "Unique AI Incidents", main="Unique AI Incidents vs Year", cex.lab=1.5, cex.main=1.5, cex.axis=1.5)
+plot(incident_data_by_year$year, incident_data_by_year$avg_reports_per_incident, type = "b", col = "blue", xlab = "Year",
+     ylab = "Average Reports per AI Incident", main='Average Reports per AI Incident vs Year',cex.lab=1.5, cex.main=1.5, cex.axis=1.5)
 plot(incident_data_by_year$year, incident_data_by_year$total_report_count, type = "b", col = 'green', xlab = "Year",
-     ylab = "Total AI Incident Reports", main='Total AI Incident Reports vs Year')
+     ylab = "Total AI Incident Reports", main='Total AI Incident Reports vs Year', cex.lab=1.5, cex.main=1.5, cex.axis=1.5)
 
 incidents_df <- read.csv(file = 'incidents.csv', header=TRUE)
 names(incidents_df)[1] <- 'incident_id'
@@ -215,6 +224,19 @@ names(incidents_df)[3] <- 'source'
 names(incidents_df)[4] <- 'body'
 incidents_df$source <- word(incidents_df$source)
 years = sort(unique(incident_dates_df$year))
+
+
+sources_df = aggregate(incidents_df$title, by=list(Category=incidents_df$source), FUN=length)
+names(sources_df)[1] <- 'source'
+names(sources_df)[2] <- 'report_count'
+
+pal2 <- brewer.pal(8,"Dark2")
+wordcloud(sources_df$source,
+          sources_df$report_count,
+          max.words    = 50,
+          random.order = FALSE,
+          colors=pal2,
+          scale=c(4,.5))
 
 #DARPA Challenges, DEEP BLUE, Intelligent Agents, STATS, afterwards # Deep Learning, Big Data
 period_1 = years[years < 2011]
@@ -231,3 +253,8 @@ period_3 = years[years > 2015]
 period_3_data = incident_data_by_time_period(incident_dates_df, incidents_df, period_3)
 emotion_by_topic_cluster(period_3_data, 'period_3_topic_sentiment.png')
 lda_analysis(period_3_data, 'period_3')
+
+
+
+
+
