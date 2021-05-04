@@ -13,6 +13,7 @@ library(qdap)
 library(pbapply)
 library(lda)
 library(LDAvis)
+library(plyr)
 library(dplyr)
 library(treemap)
 library(skmeans)
@@ -21,15 +22,14 @@ library(clue)
 library(cluster)
 library(wordcloud)
 library(lexicon)
-library(plyr)
-library(mgsub)
-library(rtweet) # contains emojis
 library(ggplot2)
 library(ggthemes)
 library(tidyr)
 library(tidytext)
 library(echarts4r)
 library(RColorBrewer)
+library(igraph)
+library(ggraph)
 
 setwd("~/Documents/GitHub/Harvard_NLP_Student/cases/C_WSB")
 options(stringsAsFactors = FALSE)
@@ -325,13 +325,16 @@ lda_analysis <-  function(text, output_dir, k = 5, numIter = 25, alpha = 0.02, e
   
   # String clean up
   text$text <- iconv(text$text, "latin1", "ASCII", sub="")
-  text$text <- gsub('http\\S+\\s*', '', text$text ) #rm URLs; qdap has rm_url same outcome.
+  text$text <- gsub('http\\S+\\s*', '', text$text) #rm URLs; qdap has rm_url same outcome.
   text$text <- bracketX(text$text , bracket="all") #rm strings in between parenteses, and other brackets
   text$text <- replace_abbreviation(text$text) # replaces a.m. to AM etc
+  text$text <- gsub("[^0-9A-Za-z///' ]", "", text$text)
   
   # Instead of DTM/TDM, just clean the vector w/old functions
   txt <- VCorpus(VectorSource(text$text))
   txt <- cleanCorpus(txt, stops)
+  
+  print(txt)
   
   # Extract the clean text
   txt <- unlist(pblapply(txt, content))
@@ -360,7 +363,7 @@ lda_analysis <-  function(text, output_dir, k = 5, numIter = 25, alpha = 0.02, e
   
   # explore some of the results
   fit$document_sums #topics by articles
-  head(t(fit$topics)) #words by topics
+  print(head(t(fit$topics))) #words by topics
   
   # LDAvis params
   # normalize the article probabilites to each topic
@@ -368,13 +371,69 @@ lda_analysis <-  function(text, output_dir, k = 5, numIter = 25, alpha = 0.02, e
   
   # normalize each topic word's impact to the topic
   phi  <- t(pbapply(fit$topics + eta, 1, function(x) x/sum(x)))
+  
+  print(length(phi))
+  print(length(theta))
+  
   ldaJSON <- createJSON(phi = phi,
                         theta = theta,
                         doc.length = txtDocLength,
                         vocab = txtLex$vocab,
                         term.frequency = as.vector(txtWordCount))
-  #serVis(ldaJSON, out.dir=output_dir, open.browser = FALSE)
-  serVis(ldaJSON)
+  serVis(ldaJSON, out.dir=output_dir, open.browser = FALSE)
+  #serVis(ldaJSON)
+}
+
+#' Find bigrams for a text
+#' @param text find text
+find_bigrams <-  function(text) {
+  bigrams_text <- text %>% unnest_tokens(bigram, text, token = "ngrams", n = 2)
+  
+  bigrams_separated <- bigrams_text %>%
+    separate(bigram, c("word1", "word2"), sep = " ")
+  
+  bigram_stop_words = c(stopwords('SMART'), 'amp', 'https', 'www.reddit.com', '<NA>',
+                        'utm_source', 'utm_medium', 'utm_name', 'png', 'webp',
+                        'comments')
+  
+  bigrams_filtered <- bigrams_separated %>%
+    filter(!word1 %in% bigram_stop_words) %>%
+    filter(!is.na(word1)) %>%
+    filter(!word2 %in% bigram_stop_words) %>%
+    filter(!is.na(word2)) 
+  
+  # new bigram counts:
+  bigram_counts <- bigrams_filtered %>% dplyr::count(word1, word2, sort = TRUE)
+  
+  return(bigram_counts)
+}
+
+#' Visualize bigrams
+#' @param count_bigrams bigram dataframe
+visualize_bigrams <- function(count_bigrams, min=30) {
+  bigram_graph <- count_bigrams %>% filter(n > min) %>% graph_from_data_frame()
+  
+  ggraph(bigram_graph, layout = "fr") +
+    geom_edge_link() +
+    geom_node_point() +
+    geom_node_text(aes(label = name), vjust = 1, hjust = 1) 
+}
+
+#' Plot bigram counts
+#' @param count_bigrams
+plot_bigram_counts <-function(count_bigrams, title, min=50) {
+  
+  # create a united bigram
+  bigrams_united <- count_bigrams %>% unite(bigram, word1, word2, sep = " ")
+  
+  top_bigrams_united <- bigrams_united %>% filter(n > min)
+  
+  fig <- plot_ly(x = top_bigrams_united$n,
+                 y = top_bigrams_united$bigram, type = 'bar', orientation = 'h')
+  
+  fig <- fig %>% layout(title=title,
+                        xaxis = list('title' = 'Count'), yaxis=list('title'='Bigram'))
+  fig
 }
 
 ################################################################################
@@ -424,16 +483,18 @@ plot_word_cloud(posts_title_tdm, 200)
 
 stops <- c(stopwords('english'))
 post_text <- data.frame('doc_id' = c(1:nrow(posts)), text = posts$post_text)
+post_text <- post_text %>% filter(!is.na(text))
 post_text_data <- generate_tdm(post_text, stops)
 post_text_tdm <- post_text_data$tdm
 plot_word_cloud(post_text_tdm, 200)
 
 stops <- c(stopwords('english'))
 comment_text <- data.frame('doc_id' = c(1:nrow(comments)), text = comments$comment)
+comment_text$text <- lapply(comment_text$text, remove_non_ascii_characters)
+comment_text <- comment_text %>% filter(!is.na(text))
 comment_text_data <- generate_tdm(comment_text, stops)
 comment_text_tdm <- comment_text_data$tdm
 plot_word_cloud(comment_text_tdm, 200)
-
 
 plot_word_frequency(comment_text_tdm, n=30, 'Reddit r/wsb GME Comment')
 plot_word_frequency(post_text_tdm, n=30, 'Reddit r/wsb GME Post')
@@ -443,21 +504,33 @@ plot_word_association(comment_text_tdm, 'gme', 0.15)
 
 plot_emotion_radar(tidy(comment_text_tdm), 'Reddit r/wsb GME Emotions')
 emotion_by_topic_cluster(post_text, 'posts_sentiment.png', nruns=1)
-
-lda_analysis(post_text, 'lda')
-
-
-# austen_bigrams <- austen_books() %>%
-#   unnest_tokens(bigram, text, token = "ngrams", n = 2)
+lda_analysis(comment_text, 'comment_lda', k = 3)
 
 
-# polarity distribution
+comments_bigrams <- find_bigrams(comment_text)
+comments_bigrams_united <- comments_bigrams %>%
+  unite(bigram, word1, word2, sep = " ")
+comments_bigrams_united
+
+top_comments_bigrams_united <- comments_bigrams_united %>% filter(n > 50)
+fig <- plot_ly(x = top_comments_bigrams_united$n, y = top_comments_bigrams_united$bigram, type = 'bar', orientation = 'h')
+fig <- fig %>% layout(title='Reddit r/wsb Comment Bigram Count', xaxis = list('title' = 'Count'), yaxis=list('title'='Bigram'))
+fig
+
+comments_bigrams <- find_bigrams(comment_text)
+
+visualize_bigrams(comments_bigrams)
+plot_bigram_counts(comments_bigrams, 'Reddit r/wsb Comments Text Bigram Count')
+
+
+post_bigrams <- find_bigrams(post_text)
+
+visualize_bigrams(post_bigrams, min=3)
+plot_bigram_counts(post_bigrams, 'Reddit r/wsb Post Text Bigram Count', min=6)
+
+
+
 
 # comment word count distribution comments / posts
 
-
-# TODO: Find out Date Range Range
-
-# TODO: Positivity / Sentiment
-
-# TODO bigrams
+# polarity distribution
