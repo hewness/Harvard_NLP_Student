@@ -55,7 +55,7 @@ plot_market_data <- function(market_data_df) {
   market_data_fig <- subplot(market_data_fig, market_data_fig2, heights = c(0.7,0.2), nrows=2,
                  shareX = TRUE, titleY = TRUE)
   
-  market_data_fig <- market_data_fig %>% layout(title = paste("GME Market Data",Sys.Date()),
+  market_data_fig <- market_data_fig %>% layout(title = paste("GME Market Data"),
                         xaxis = list(title='Date'),
                         legend = list(orientation = 'h', x = 0.5, y = 1,
                                       xanchor = 'center', yref = 'paper',
@@ -179,23 +179,31 @@ plot_word_cloud <- function(tdm, n) {
 #' 
 #' @param tdm term document matrix
 #' @param i_title the title of the chart
-plot_word_frequency <- function(tdm, n, i_title) {
-  tweet_tdm <- as.matrix(tdm)
-  tweetSums <- rowSums(tweet_tdm)
-  tweetFreq <- data.frame(word=names(tweetSums), frequency=tweetSums)
+plot_word_frequency <- function(tdm, min, i_title) {
+  topWords <- tidy(tdm)
+  topWords <- dplyr::rename(topWords, word = term)
+
+  topWords <- topWords %>%
+    dplyr::count(word, sort = TRUE) %>%
+    ungroup()
+  topWords <- topWords %>% filter(n > min)
   
-  topWords <- tweetFreq %>% top_n(n, frequency) %>% arrange(frequency)
+  print(topWords)
   
-  # Chg to factor for ggplot
-  topWords$word <- factor(topWords$word, 
-                          levels=unique(as.character(topWords$word))) 
+  fig_word_count <- plot_ly(x = ~topWords$n, y = ~topWords$word,
+                          type = 'bar',
+                          orientation = 'h',
+                          alpha=0.6,
+                          name = 'Word Frequncy')
   
-  p <- ggplot(topWords, aes(x=word, y=frequency)) + 
-    geom_bar(stat="identity", fill='orange3') + 
-    coord_flip()+ theme_gdocs() +
-    geom_text(aes(label=frequency), colour="white",hjust=1.25, size=3.0)  
-  
-  p + labs(title = paste0(i_title, ' Word Frequency'))
+  fig_word_count <- fig_word_count %>% layout(title = i_title,
+                                              yaxis = list(title = 'Word',
+                                                           categoryorder = 'array',
+                                                           categoryarray = topWords$n,
+                                                           tickmode = 'linear'),
+                                              xaxis = list('title' = 'Word Count'))
+
+  return(fig_word_count)
 }
 
 #' Plot word association
@@ -421,7 +429,7 @@ visualize_bigrams <- function(count_bigrams, min=30) {
 
 #' Plot bigram counts
 #' @param count_bigrams
-plot_bigram_counts <-function(count_bigrams, title, min=50) {
+plot_bigram_counts <- function(count_bigrams, title, min=50) {
   
   # create a united bigram
   bigrams_united <- count_bigrams %>% unite(bigram, word1, word2, sep = " ")
@@ -429,11 +437,80 @@ plot_bigram_counts <-function(count_bigrams, title, min=50) {
   top_bigrams_united <- bigrams_united %>% filter(n > min)
   
   fig <- plot_ly(x = top_bigrams_united$n,
-                 y = top_bigrams_united$bigram, type = 'bar', orientation = 'h')
+                 y = top_bigrams_united$bigram, type = 'bar', orientation = 'h',
+                 alpha = 0.6)
   
-  fig <- fig %>% layout(title=title,
-                        xaxis = list('title' = 'Count'), yaxis=list('title'='Bigram'))
-  fig
+  fig <- fig %>% layout(title=paste(title, "(Word Count >", min, ")"),
+                        xaxis = list('title' = 'Count'),
+                        yaxis = list(title='Bigram', categoryorder = "array",
+                                     categoryarray = top_bigrams_united$n))
+  
+  return(fig)
+}
+
+#' Plot histograms
+#' @param posts post data frame
+#' @param comments comments data frame
+plot_word_count_histograms <- function(posts, comments) {
+  fig_post_title_word_count_hist <- plot_ly(posts, x=~title_word_count, type = "histogram", alpha=0.6, name='Post Title Text')
+  
+  fig_post_word_count_hist <- plot_ly(posts, x=~word_count, type = "histogram", alpha=0.6, name='Post Body Text')
+  
+  
+  fig_comments_word_count_hist <- plot_ly(comments, x=~word_count, type = "histogram", alpha=0.6, name='Comment Text')
+  
+  fig_word_count_hist <- subplot(fig_post_title_word_count_hist, fig_post_word_count_hist, fig_comments_word_count_hist, titleY = TRUE)
+  fig_word_count_hist <- fig_word_count_hist  %>% layout(title='Reddit r/wsb GME Word Count Histograms',
+                                                         xaxis = list('title' = '# of Words'),
+                                                         yaxis = list('title' = 'Word Count'))
+  return(fig_word_count_hist)
+}
+
+#' Plot polarity word counts
+#
+#' @param tdm text document matrix
+#' @param min minimum word count
+plot_polarity_word_counts <- function(tdm, title, min = 2) {
+  
+  tidy_posts <- tidy(tdm)
+  tidy_posts <- dplyr::rename(tidy_posts, word = term)
+  
+  sentiment_word_counts <- tidy_posts %>%
+    inner_join(get_sentiments("bing")) %>%
+    dplyr::count(word, sentiment, sort = TRUE) %>%
+    ungroup()
+  
+  sentiment_count <- tidy_posts %>%
+    inner_join(get_sentiments("bing")) %>%
+    dplyr::count(sentiment, sort = TRUE) %>%
+    ungroup()
+  
+  postive_sentiment_count <- sentiment_count %>% filter(sentiment == 'positive') 
+  negative_sentiment_count <- sentiment_count %>% filter(sentiment == 'negative') 
+  
+  print(postive_sentiment_count$n[1])
+  
+  positive_word_counts <- sentiment_word_counts %>% filter(sentiment == 'positive') 
+  positive_word_counts <- positive_word_counts %>% filter(n > min)
+
+  negative_word_counts <- sentiment_word_counts %>% filter(sentiment == 'negative')
+  sentiment_word_counts <- sentiment_word_counts %>% filter(n > min)
+  
+  fig_positive <- plot_ly(x = positive_word_counts$n, y = positive_word_counts$word,
+                          type = 'bar', orientation = 'h', alpha=0.6, name = 'Positive Words')
+  fig_positive <- fig_positive %>% layout(yaxis = list(categoryorder = "array", categoryarray = positive_word_counts$n))
+  
+  fig_negative <- plot_ly(x = negative_word_counts$n, y = negative_word_counts$word,
+                          type = 'bar', orientation = 'h', alpha=0.6, name = 'Negative Words')
+  fig_negative <- fig_negative %>% layout(yaxis = list(categoryorder = "array", categoryarray = negative_word_counts$n))
+  
+  fig_sentiment <- subplot(fig_positive, fig_negative, titleY = TRUE, titleX= TRUE)
+  fig_sentiment <- fig_sentiment  %>% layout(title = paste(title, "(Word Count >",min,
+                                                           ", Postive Word Count:", postive_sentiment_count$n[1],
+                                                           ", Negative Word Count:", negative_sentiment_count$n[1],")"),
+                                             xaxis = list('title' = 'Word Count'))
+
+  return(fig_sentiment)
 }
 
 ################################################################################
@@ -453,6 +530,8 @@ cases_gme_df$comm_date_ymd <- date(ymd(cases_gme_df$comm_date))
 posts <- distinct(cases_gme_df %>% select(post_date_ymd, title, post_text, post_score, upvote_prop, link))
 names(posts)[1] <- 'post_date'
 posts <- posts[order(posts$post_date),]
+posts$word_count <-  lapply(strsplit(posts$post_text, " "), length) 
+posts$title_word_count <- lapply(strsplit(posts$title, " "), length) 
 
 # Summarize post data grouped by day
 posts_by_day <- posts %>% group_by(post_date) %>% summarise_at(vars(title), funs(n()))
@@ -462,6 +541,7 @@ posts_by_day <- posts_by_day[order(posts_by_day$post_date),]
 # Extrat comments
 comments <- cases_gme_df  %>% select(id, structure, comm_date_ymd, upvote_prop, comment)
 names(comments)[3] <- 'comment_date'
+comments$word_count <-  lapply(strsplit(comments$comment, " "), length) 
 
 # Summarize comment data grouped by day
 comments_by_day = comments %>% group_by(comment_date) %>% summarise_at(vars(id), funs(n()))
@@ -475,62 +555,73 @@ top_posts <- top_posts[1:10,]
 
 plot_reddit_data(posts, posts_by_day, comments_by_day)
 
-stops <- c(stopwords('english'))
+# Prepare posts and comments into TDMs
+stops <- c(stopwords('SMART'))
 post_titles <- data.frame('doc_id' = c(1:nrow(posts)), text = posts$title)
 posts_title_data <- generate_tdm(post_titles, stops)
 posts_title_tdm <- posts_title_data$tdm
 plot_word_cloud(posts_title_tdm, 200)
 
-stops <- c(stopwords('english'))
+stops <- c(stopwords('SMART'))
 post_text <- data.frame('doc_id' = c(1:nrow(posts)), text = posts$post_text)
 post_text <- post_text %>% filter(!is.na(text))
 post_text_data <- generate_tdm(post_text, stops)
 post_text_tdm <- post_text_data$tdm
-plot_word_cloud(post_text_tdm, 200)
 
-stops <- c(stopwords('english'))
+stops <- c(stopwords('SMART'))
 comment_text <- data.frame('doc_id' = c(1:nrow(comments)), text = comments$comment)
 comment_text$text <- lapply(comment_text$text, remove_non_ascii_characters)
 comment_text <- comment_text %>% filter(!is.na(text))
 comment_text_data <- generate_tdm(comment_text, stops)
 comment_text_tdm <- comment_text_data$tdm
+
+# Word Clouds
+plot_word_cloud(post_text_tdm, 200)
 plot_word_cloud(comment_text_tdm, 200)
 
-plot_word_frequency(comment_text_tdm, n=30, 'Reddit r/wsb GME Comment')
-plot_word_frequency(post_text_tdm, n=30, 'Reddit r/wsb GME Post')
+# Word Frequencies
+fig_comment_word_count <- plot_word_frequency(comment_text_tdm, 500, 'Reddit r/wsb GME Comment Word Count (Word Count > 500)')
+fig_comment_word_count
 
+fig_post_text_word_count <- plot_word_frequency(post_text_tdm, 10, 'Reddit r/wsb GME Post Word Count (Word Count > 10')
+fig_post_text_word_count
+
+# Word Associations
 plot_word_association(post_text_tdm, 'gme', 0.80)
 plot_word_association(comment_text_tdm, 'gme', 0.15)
 
+# Comments Bigrams
+comments_bigrams <- find_bigrams(comment_text)
+
+visualize_bigrams(comments_bigrams)
+
+fig_comments_bigram_counts <- plot_bigram_counts(comments_bigrams, 'Reddit GME r/wsb Comments Text Bigram Count')
+fig_comments_bigram_counts
+
+# Post Bigrams
+post_bigrams <- find_bigrams(post_text)
+
+visualize_bigrams(post_bigrams, min=3)
+
+fig_post_bigram_counts <- plot_bigram_counts(post_bigrams, 'Reddit r/wsb Post Text Bigram Count', min=6)
+fig_post_bigram_counts
+
+# Word Count Histograms
+
+fig_word_count_hist <- plot_word_count_histograms(posts, comments)
+fig_word_count_hist
+
+# LDA and sentiment analysis
 plot_emotion_radar(tidy(comment_text_tdm), 'Reddit r/wsb GME Emotions')
 emotion_by_topic_cluster(post_text, 'posts_sentiment.png', nruns=1)
 lda_analysis(comment_text, 'comment_lda', k = 3)
 
 
-comments_bigrams <- find_bigrams(comment_text)
-comments_bigrams_united <- comments_bigrams %>%
-  unite(bigram, word1, word2, sep = " ")
-comments_bigrams_united
-
-top_comments_bigrams_united <- comments_bigrams_united %>% filter(n > 50)
-fig <- plot_ly(x = top_comments_bigrams_united$n, y = top_comments_bigrams_united$bigram, type = 'bar', orientation = 'h')
-fig <- fig %>% layout(title='Reddit r/wsb Comment Bigram Count', xaxis = list('title' = 'Count'), yaxis=list('title'='Bigram'))
-fig
-
-comments_bigrams <- find_bigrams(comment_text)
-
-visualize_bigrams(comments_bigrams)
-plot_bigram_counts(comments_bigrams, 'Reddit r/wsb Comments Text Bigram Count')
-
-
-post_bigrams <- find_bigrams(post_text)
-
-visualize_bigrams(post_bigrams, min=3)
-plot_bigram_counts(post_bigrams, 'Reddit r/wsb Post Text Bigram Count', min=6)
-
-
-
-
-# comment word count distribution comments / posts
-
 # polarity distribution
+fig_posts_sentiment <- plot_polarity_word_counts(post_text_tdm, 'Reddit r/wsb GME Post Text Word Sentiment Count')
+fig_posts_sentiment
+
+fig_comments_sentiment <- plot_polarity_word_counts(comment_text_tdm,
+                                                    'Reddit r/wsb GME Comments Word Sentiment Count',
+                                                    min = 75)
+fig_comments_sentiment
