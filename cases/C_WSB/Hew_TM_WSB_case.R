@@ -84,7 +84,7 @@ plot_reddit_data <- function(posts_df, posts_by_day_df, comments_by_day_df) {
   posts_fig <- subplot(fig1_box_posts, fig2_posts, fig3_commments, heights = c(0.6,0.2, 0.2), nrows=3,
                        shareX = TRUE, titleY = TRUE)
   
-  posts_fig <- posts_fig %>% layout(title = paste("Reddit GME Post Data",Sys.Date()),
+  posts_fig <- posts_fig %>% layout(title = paste("Reddit r/wallstreetbets GME Post Data"),
                                     xaxis = list(title='Date'),
                                     legend = list(orientation = 'h', x = 0.5, y = 1,
                                                   xanchor = 'center', yref = 'paper',
@@ -133,16 +133,7 @@ cleanCorpus <- function(corpus, customStopwords){
 #' @param stops the stop words to use
 generate_tdm <- function(df, stops) {
   temp_copy <- data.frame(df)
-  #temp_copy <- temp_copy[!duplicated(temp_copy$doc_id),]
-  
-  #print(paste0(nrow(temp_copy), ' Rows found'))
-  
-  #sample_size <- nrow(temp_copy) * 0.05
-  
-  #sample_copy <- sample_n(temp_copy, sample_size)
-  
-  #print(paste0('Sampled ', sample_size, ' (5%) of ', nrow(temp_copy), ' tweets'))
-  
+
   sample_copy <- temp_copy
   
   txtCorpus <- VCorpus(DataframeSource(sample_copy))
@@ -179,7 +170,7 @@ plot_word_cloud <- function(tdm, n) {
 #' 
 #' @param tdm term document matrix
 #' @param i_title the title of the chart
-plot_word_frequency <- function(tdm, min, i_title) {
+plot_word_frequency <- function(tdm, min, i_title, name) {
   topWords <- tidy(tdm)
   topWords <- dplyr::rename(topWords, word = term)
 
@@ -187,21 +178,23 @@ plot_word_frequency <- function(tdm, min, i_title) {
     dplyr::count(word, sort = TRUE) %>%
     ungroup()
   topWords <- topWords %>% filter(n > min)
-  
-  print(topWords)
-  
+
   fig_word_count <- plot_ly(x = ~topWords$n, y = ~topWords$word,
                           type = 'bar',
                           orientation = 'h',
                           alpha=0.6,
-                          name = 'Word Frequncy')
+                          name = name)
   
-  fig_word_count <- fig_word_count %>% layout(title = i_title,
-                                              yaxis = list(title = 'Word',
+  f <- list(
+    family = "Courier New, monospace",
+    size = 18,
+    color = "black")
+
+  fig_word_count <- fig_word_count %>% layout(yaxis = list(title = 'Word',
                                                            categoryorder = 'array',
                                                            categoryarray = topWords$n,
                                                            tickmode = 'linear'),
-                                              xaxis = list('title' = 'Word Count'))
+                                              xaxis = list('title' = 'Word Frequency'))
 
   return(fig_word_count)
 }
@@ -460,7 +453,7 @@ plot_word_count_histograms <- function(posts, comments) {
   fig_comments_word_count_hist <- plot_ly(comments, x=~word_count, type = "histogram", alpha=0.6, name='Comment Text')
   
   fig_word_count_hist <- subplot(fig_post_title_word_count_hist, fig_post_word_count_hist, fig_comments_word_count_hist, titleY = TRUE)
-  fig_word_count_hist <- fig_word_count_hist  %>% layout(title='Reddit r/wsb GME Word Count Histograms',
+  fig_word_count_hist <- fig_word_count_hist  %>% layout(title='Reddit r/wallstreetbets GME Word Count Histograms',
                                                          xaxis = list('title' = '# of Words'),
                                                          yaxis = list('title' = 'Word Count'))
   return(fig_word_count_hist)
@@ -580,11 +573,11 @@ plot_word_cloud(post_text_tdm, 200)
 plot_word_cloud(comment_text_tdm, 200)
 
 # Word Frequencies
-fig_comment_word_count <- plot_word_frequency(comment_text_tdm, 500, 'Reddit r/wsb GME Comment Word Count (Word Count > 500)')
-fig_comment_word_count
-
-fig_post_text_word_count <- plot_word_frequency(post_text_tdm, 10, 'Reddit r/wsb GME Post Word Count (Word Count > 10')
-fig_post_text_word_count
+fig_post_text_word_count <- plot_word_frequency(post_text_tdm, 10, 'Reddit r/wallstreetbets GME Post Word Count (Word Count > 10)', 'Post Body Text')
+fig_comment_word_count <- plot_word_frequency(comment_text_tdm, 500, 'Reddit r/wallstreetbets GME Comment Word Count (Word Count > 500)', 'Comment Text')
+fig_word_count <- subplot(fig_post_text_word_count, fig_comment_word_count, titleY = TRUE, titleX= TRUE)
+fig_word_count <- fig_word_count  %>% layout(title = "Reddit r/wallstreetbets GME Comment Word Count", xaxis = list('title' = 'Word Frequency'))
+fig_word_count
 
 # Word Associations
 plot_word_association(post_text_tdm, 'gme', 0.80)
@@ -595,7 +588,7 @@ comments_bigrams <- find_bigrams(comment_text)
 
 visualize_bigrams(comments_bigrams)
 
-fig_comments_bigram_counts <- plot_bigram_counts(comments_bigrams, 'Reddit GME r/wsb Comments Text Bigram Count')
+fig_comments_bigram_counts <- plot_bigram_counts(comments_bigrams, 'Reddit GME r/wallstreetbets Comments Text Bigram Frequencies')
 fig_comments_bigram_counts
 
 # Post Bigrams
@@ -603,17 +596,16 @@ post_bigrams <- find_bigrams(post_text)
 
 visualize_bigrams(post_bigrams, min=3)
 
-fig_post_bigram_counts <- plot_bigram_counts(post_bigrams, 'Reddit r/wsb Post Text Bigram Count', min=6)
+fig_post_bigram_counts <- plot_bigram_counts(post_bigrams, 'Reddit r/wallstreetbets Post Text Bigram Frequencies', min=6)
 fig_post_bigram_counts
 
 # Word Count Histograms
-
 fig_word_count_hist <- plot_word_count_histograms(posts, comments)
 fig_word_count_hist
 
 # LDA and sentiment analysis
-plot_emotion_radar(tidy(comment_text_tdm), 'Reddit r/wsb GME Emotions')
-emotion_by_topic_cluster(post_text, 'posts_sentiment.png', nruns=1)
+plot_emotion_radar(tidy(comment_text_tdm), 'Reddit r/wallstreetbets GME Emotions')
+#emotion_by_topic_cluster(post_text, 'posts_sentiment.png', nruns=1)
 lda_analysis(comment_text, 'comment_lda', k = 3)
 
 
